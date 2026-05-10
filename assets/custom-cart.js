@@ -112,12 +112,12 @@ if (!customElements.get('product-form')) {
 
       // Change button text to show success
       if (this.submitButtonText) this.submitButtonText.textContent = '✓ Added to Cart';
-      this.submitButton.classList.add('btn--success'); // add green color (defined in CSS)
+      this.submitButton.style.backgroundColor = green; // add green color (defined in CSS)
 
       // After 2 seconds, restore the button back to normal
       setTimeout(() => {
         if (this.submitButtonText) this.submitButtonText.textContent = originalText;
-        this.submitButton.classList.remove('btn--success');
+        this.submitButton.style.backgroundColor = white;
       }, 2000); // 2000 milliseconds = 2 seconds
 
       // If the page has a cart drawer (slide-out cart), open it
