@@ -1,0 +1,80 @@
+class CustomAddToCart {
+  constructor() {
+    this.cartCount = document.querySelector('.cart-count-bubble');
+    this.init();
+  }
+
+  init() {
+    // Override the default form submission for product forms
+    document.querySelectorAll('form[action="/cart/add"]').forEach(form => {
+      form.addEventListener('submit', (e) => this.handleAddToCart(e));
+    });
+  }
+
+  async handleAddToCart(e) {
+    e.preventDefault();
+    const form = e.target;
+    const submitBtn = form.querySelector('[type="submit"]');
+
+    // Prevent double-clicks
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Adding...';
+
+    const formData = new FormData(form);
+
+    try {
+      const response = await fetch('/cart/add.js', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.description || 'Could not add item');
+      }
+
+      const item = await response.json();
+      this.onSuccess(item, submitBtn);
+      await this.updateCartCount();
+
+    } catch (err) {
+      this.onError(err.message, submitBtn);
+    }
+  }
+
+  onSuccess(item, btn) {
+    btn.textContent = '✓ Added!';
+    btn.style.backgroundColor = '#2d6a4f'; // green flash
+    setTimeout(() => {
+      btn.textContent = 'Add to Cart';
+      btn.style.backgroundColor = '';
+      btn.disabled = false;
+    }, 2000);
+
+    // Optional: dispatch event for other components (e.g. cart drawer)
+    document.dispatchEvent(new CustomEvent('cart:item-added', { detail: item }));
+  }
+
+  onError(message, btn) {
+    btn.textContent = 'Failed — Try Again';
+    btn.style.backgroundColor = '#c0392b';
+    btn.disabled = false;
+    setTimeout(() => {
+      btn.textContent = 'Add to Cart';
+      btn.style.backgroundColor = '';
+    }, 3000);
+
+    console.error('Add to cart error:', message);
+  }
+
+  async updateCartCount() {
+    const res = await fetch('/cart.js');
+    const cart = await res.json();
+    if (this.cartCount) {
+      this.cartCount.querySelector('span:first-child').textContent = cart.item_count;
+    }
+  }
+}
+
+// Initialize on DOM ready
+document.addEventListener('DOMContentLoaded', () => new CustomAddToCart());
