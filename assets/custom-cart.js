@@ -62,13 +62,6 @@ if (!customElements.get('product-form')) {
         this.submitButton.style.backgroundColor = "white";
         this.submitButton.style.color = "black";
       }, 2000);
-
-      document.dispatchEvent(
-        new CustomEvent('custom:cart:item-added', {
-          detail: item,
-          bubbles: true
-        })
-      );
     }
 
     async updateCartCount() {
