@@ -72,6 +72,8 @@ if (!customElements.get('product-form')) {
       const res = await fetch('/cart.js');
       const cart = await res.json();
 
+      console.log("cart", cart);
+
       document.querySelectorAll('.cart-count-bubble span').forEach((el, i) => {
         if (i === 0) el.textContent = cart.item_count;
       });
