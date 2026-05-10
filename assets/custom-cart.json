@@ -1,80 +1,103 @@
-class CustomAddToCart {
-  constructor() {
-    this.cartCount = document.querySelector('.cart-count-bubble');
-    this.init();
-  }
+if (!customElements.get('product-form')) {
+  customElements.define(
+    'product-form',
+    class ProductForm extends HTMLElement {
+      constructor() {
+        super();
 
-  init() {
-    // Override the default form submission for product forms
-    document.querySelectorAll('form[action="/cart/add"]').forEach(form => {
-      form.addEventListener('submit', (e) => this.handleAddToCart(e));
-    });
-  }
-
-  async handleAddToCart(e) {
-    e.preventDefault();
-    const form = e.target;
-    const submitBtn = form.querySelector('[type="submit"]');
-
-    // Prevent double-clicks
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Adding...';
-
-    const formData = new FormData(form);
-
-    try {
-      const response = await fetch('/cart/add.js', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.description || 'Could not add item');
+        this.form = this.querySelector('form');
+        this.variantIdInput.disabled = false;
+        this.form.addEventListener('submit', this.onSubmitHandler.bind(this));
+        this.submitButton = this.querySelector('[type="submit"]');
+        this.submitButtonText = this.submitButton.querySelector('span');
+        this.hideErrors = this.dataset.hideErrors === 'true';
       }
 
-      const item = await response.json();
-      this.onSuccess(item, submitBtn);
-      await this.updateCartCount();
+      async onSubmitHandler(evt) {
+        evt.preventDefault();
+        if (this.submitButton.getAttribute('aria-disabled') === 'true') return;
 
-    } catch (err) {
-      this.onError(err.message, submitBtn);
+        this.submitButton.setAttribute('aria-disabled', 'true');
+        this.submitButton.classList.add('loading');
+        this.querySelector('.loading__spinner')?.classList.remove('hidden');
+        this.handleErrorMessage();
+
+        const formData = new FormData(this.form);
+
+        try {
+          const response = await fetch('/cart/add.js', {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: formData,
+          });
+
+          const data = await response.json();
+
+          if (!response.ok || data.status) {
+            this.handleErrorMessage(data.description || 'Could not add item to cart.');
+            const soldOutMessage = this.submitButton.querySelector('.sold-out-message');
+            if (soldOutMessage) {
+              this.submitButton.setAttribute('aria-disabled', 'true');
+              this.submitButtonText?.classList.add('hidden');
+              soldOutMessage.classList.remove('hidden');
+            }
+            return;
+          }
+
+          await this.updateCartCount();
+          this.onAddSuccess(data);
+
+        } catch (err) {
+          console.error('[Custom ATC] Error:', err);
+          this.handleErrorMessage('Something went wrong. Please try again.');
+
+        } finally {
+          this.submitButton.classList.remove('loading');
+          this.querySelector('.loading__spinner')?.classList.add('hidden');
+          this.submitButton.removeAttribute('aria-disabled');
+        }
+      }
+
+      onAddSuccess(item) {
+        const originalText = this.submitButtonText?.textContent;
+        if (this.submitButtonText) this.submitButtonText.textContent = '✓ Added to Cart';
+        this.submitButton.classList.add('btn--success');
+
+        setTimeout(() => {
+          if (this.submitButtonText) this.submitButtonText.textContent = originalText;
+          this.submitButton.classList.remove('btn--success');
+        }, 2000);
+
+        const cartDrawer = document.querySelector('cart-drawer');
+        if (cartDrawer) cartDrawer.open();
+
+        document.dispatchEvent(
+          new CustomEvent('custom:cart:item-added', { detail: item, bubbles: true })
+        );
+      }
+
+      async updateCartCount() {
+        const res = await fetch('/cart.js');
+        const cart = await res.json();
+        document.querySelectorAll('.cart-count-bubble span').forEach((el, i) => {
+          if (i === 0) el.textContent = cart.item_count;
+        });
+      }
+
+      handleErrorMessage(errorMessage = false) {
+        if (this.hideErrors) return;
+        this.errorMessageWrapper =
+          this.errorMessageWrapper || this.querySelector('.product-form__error-message-wrapper');
+        if (!this.errorMessageWrapper) return;
+        this.errorMessage =
+          this.errorMessage || this.errorMessageWrapper.querySelector('.product-form__error-message');
+        this.errorMessageWrapper.toggleAttribute('hidden', !errorMessage);
+        if (errorMessage) this.errorMessage.textContent = errorMessage;
+      }
+
+      get variantIdInput() {
+        return this.form.querySelector('[name=id]');
+      }
     }
-  }
-
-  onSuccess(item, btn) {
-    btn.textContent = '✓ Added!';
-    btn.style.backgroundColor = '#2d6a4f'; // green flash
-    setTimeout(() => {
-      btn.textContent = 'Add to Cart';
-      btn.style.backgroundColor = '';
-      btn.disabled = false;
-    }, 2000);
-
-    // Optional: dispatch event for other components (e.g. cart drawer)
-    document.dispatchEvent(new CustomEvent('cart:item-added', { detail: item }));
-  }
-
-  onError(message, btn) {
-    btn.textContent = 'Failed — Try Again';
-    btn.style.backgroundColor = '#c0392b';
-    btn.disabled = false;
-    setTimeout(() => {
-      btn.textContent = 'Add to Cart';
-      btn.style.backgroundColor = '';
-    }, 3000);
-
-    console.error('Add to cart error:', message);
-  }
-
-  async updateCartCount() {
-    const res = await fetch('/cart.js');
-    const cart = await res.json();
-    if (this.cartCount) {
-      this.cartCount.querySelector('span:first-child').textContent = cart.item_count;
-    }
-  }
+  );
 }
-
-// Initialize on DOM ready
-document.addEventListener('DOMContentLoaded', () => new CustomAddToCart());
