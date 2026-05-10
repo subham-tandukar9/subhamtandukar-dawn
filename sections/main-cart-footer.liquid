@@ -105,7 +105,7 @@
               </div>
             {%- else -%}
               <div class="cart__ctas" {{ block.shopify_attributes }}>
-                <button
+                {% comment %} <button
                   type="submit"
                   id="checkout"
                   class="cart__checkout-button button"
@@ -116,6 +116,10 @@
                   form="cart"
                 >
                   {{ 'sections.cart.checkout' | t }}
+                </button> {% endcomment %}
+
+                <button type="button" id="custom-checkout" class="cart__checkout-button button">
+                  Checkout
                 </button>
               </div>
 
