@@ -30,6 +30,9 @@ if (!customElements.get('product-form')) {
 
         const data = await response.json();
 
+        console.log("data", data);
+        console.log("response", response);
+
         if (!response.ok || data.status) {
           this.handleErrorMessage(data.description || 'Could not add item to cart.');
           return;
